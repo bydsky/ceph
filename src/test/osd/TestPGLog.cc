@@ -517,7 +517,7 @@ TEST_F(PGLogTest, merge_old_entry) {
     EXPECT_FALSE(merge_old_entry(t, oe, info, &h));
 
     EXPECT_FALSE(is_dirty());
-    EXPECT_TRUE(remove_snap.empty());
+    EXPECT_TRUE(remove_snap.size() > 0);
     EXPECT_TRUE(t.empty());
     EXPECT_FALSE(missing.have_missing());
     EXPECT_EQ(1U, log.log.size());

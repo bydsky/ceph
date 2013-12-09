@@ -293,7 +293,9 @@ bool PGLog::merge_old_entry(
       if (ne.is_delete()) {
 	// old update, new delete
 	dout(20) << "merge_old_entry  had " << oe << " new " << ne << " : new delete supercedes" << dendl;
-	missing.rm(oe.soid, oe.version);
+	rollbacker->remove(&t, oe.soid);
+	if (missing.is_missing(oe.soid))
+	  missing.rm(oe.soid, oe.version);
       } else {
 	// old update, new update
 	dout(20) << "merge_old_entry  had " << oe << " new " << ne << " : new item supercedes" << dendl;

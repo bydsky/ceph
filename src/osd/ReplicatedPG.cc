@@ -8487,7 +8487,8 @@ int ReplicatedPG::recover_backfill(
        pending_backfill_updates.erase(i++)) {
     pinfo.stats.add(i->second);
     assert(i->first > new_last_backfill);
-    new_last_backfill = i->first;
+    if (i->first.is_head_or_snapdir())
+      new_last_backfill = i->first;
   }
 
   /* If last_backfill is snapdir, we know that head necessarily cannot exist,
@@ -8500,8 +8501,6 @@ int ReplicatedPG::recover_backfill(
   if (last_backfill_started.is_snapdir())
     last_backfill_started = last_backfill_started.get_head();
 
-  assert(!pending_backfill_updates.empty() ||
-	 new_last_backfill == last_backfill_started);
   if (pending_backfill_updates.empty() &&
       backfill_pos.is_max()) {
     assert(backfills_in_flight.empty());

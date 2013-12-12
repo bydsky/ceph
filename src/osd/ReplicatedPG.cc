@@ -104,38 +104,26 @@ static void log_subop_stats(
 struct OnReadComplete : public Context {
   ReplicatedPG *pg;
   ReplicatedPG::OpContext *opcontext;
-  Context *c;
   OnReadComplete(
     ReplicatedPG *pg,
-    ReplicatedPG::OpContext *ctx,
-    Context *c) : pg(pg), opcontext(ctx), c(c) {}
+    ReplicatedPG::OpContext *ctx) : pg(pg), opcontext(ctx) {}
   void finish(int r) {
-    if (c)
-      c->complete(r);
-    c = NULL;
     if (r < 0)
       opcontext->async_read_result = r;
     opcontext->finish_read(pg);
   }
-  ~OnReadComplete() { delete c; }
+  ~OnReadComplete() {}
 };
 
 // OpContext
 void ReplicatedPG::OpContext::start_async_reads(ReplicatedPG *pg)
 {
-  for (list<pair<pair<uint64_t, uint64_t>,
-		 pair<bufferlist*, Context*> > >::iterator i =
-	 pending_async_reads.begin();
-       i != pending_async_reads.end();
-       pending_async_reads.erase(i++)) {
-    ++inflightreads;
-    pg->pgbackend->objects_read_async(
-      obc->obs.oi.soid,
-      i->first.first,
-      i->first.second,
-      i->second.first,
-      new OnReadComplete(pg, this, i->second.second));
-  }
+  inflightreads = 1;
+  pg->pgbackend->objects_read_async(
+    obc->obs.oi.soid,
+    pending_async_reads,
+    new OnReadComplete(pg, this));
+  pending_async_reads.clear();
 }
 void ReplicatedPG::OpContext::finish_read(ReplicatedPG *pg)
 {

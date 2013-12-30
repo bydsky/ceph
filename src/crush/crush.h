@@ -25,7 +25,6 @@
 
 #define CRUSH_MAGIC 0x00010000ul   /* for detecting algorithm revisions */
 
-
 #define CRUSH_MAX_DEPTH 10  /* max crush hierarchy depth */
 
 #define CRUSH_MAX_DEVICE_WEIGHT (100u * 0x10000u)
@@ -58,6 +57,8 @@ enum {
 
 	CRUSH_RULE_SET_CHOOSE_TRIES = 8, /* override choose_total_tries */
 	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
+	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
+	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
 };
 
 /*

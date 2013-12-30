@@ -886,13 +886,7 @@ class TestOSD(TestArgparse):
                                    'poolname', '128', '128'])
         self.assert_valid_command(['osd', 'pool', 'create',
                                    'poolname', '128', '128',
-                                   'foo=bar'])
-        self.assert_valid_command(['osd', 'pool', 'create',
-                                   'poolname', '128', '128',
-                                   'foo=bar', 'baz=frob'])
-        self.assert_valid_command(['osd', 'pool', 'create',
-                                   'poolname', '128',
-                                   'foo=bar', 'baz=frob'])
+                                   'whatever'])
         assert_equal({}, validate_command(sigdict, ['osd', 'pool', 'create']))
         assert_equal({}, validate_command(sigdict, ['osd', 'pool', 'create',
                                                     'poolname']))

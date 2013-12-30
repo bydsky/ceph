@@ -238,9 +238,11 @@ private:
   bool prepare_pool_op (MPoolOp *m);
   bool prepare_pool_op_create (MPoolOp *m);
   bool prepare_pool_op_delete(MPoolOp *m);
-  int prepare_new_pool(string& name, uint64_t auid, int crush_rule,
+  int prepare_new_pool(string& name, uint64_t auid, int crush_ruleset,
                        unsigned pg_num, unsigned pgp_num,
-		       const vector<string> &properties);
+		       const vector<string> &properties,
+                       const unsigned pool_type,
+		       stringstream &ss);
   int prepare_new_pool(MPoolOp *m);
 
   void update_pool_flags(int64_t pool_id, uint64_t flags);
@@ -321,7 +323,6 @@ private:
   void tick();  // check state, take actions
 
   int parse_osd_id(const char *s, stringstream *pss);
-  void parse_loc_map(const vector<string>& args, map<string,string> *ploc);
 
   void get_health(list<pair<health_status_t,string> >& summary,
 		  list<pair<health_status_t,string> > *detail) const;

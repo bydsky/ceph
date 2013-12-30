@@ -128,7 +128,12 @@ AX_C_PRETTY_FUNC
 
 # Checks for libraries.
 ACX_PTHREAD
+
 AC_CHECK_LIB([uuid], [uuid_parse], [true], AC_MSG_FAILURE([libuuid not found]))
+
+if test x"$linux" = x"yes"; then
+  AC_CHECK_LIB([blkid], [blkid_devno_to_wholedisk], [true], AC_MSG_FAILURE([libblkid not found]))
+fi
 
 #
 # Check for res_nquery in libresolv. There are several variations. On OSX
@@ -582,7 +587,23 @@ AC_CHECK_MEMBER([struct fiemap_extent.fe_logical],
 	[AC_MSG_NOTICE([linux/fiemap.h was not found or not usable; using local Ceph copy])],
 	[[#include <linux/fiemap.h>]])
 
-AC_CHECK_HEADERS([sys/xattr.h arpa/inet.h netdb.h netinet/in.h sys/file.h sys/ioctl.h sys/mount.h sys/param.h sys/socket.h sys/statvfs.h sys/time.h sys/vfs.h syslog.h utime.h])
+AC_CHECK_HEADERS([ \
+	arpa/inet.h \
+	linux/version.h \
+	netdb.h \
+	netinet/in.h \
+	sys/file.h \
+	sys/ioctl.h \
+	sys/mount.h \
+	sys/param.h \
+	sys/socket.h \
+	sys/statvfs.h \
+	sys/time.h \
+	sys/vfs.h \
+	sys/xattr.h \
+	syslog.h \
+	utime.h \
+])
 
 # sync_file_range
 AC_CHECK_FUNC([sync_file_range],
@@ -621,6 +642,7 @@ F_SETPIPE_SZ]])],
 
 
 AC_CHECK_HEADERS([arpa/nameser_compat.h])
+AC_CHECK_FUNCS([posix_fallocate])
 AC_CHECK_HEADERS([sys/prctl.h])
 AC_CHECK_FUNCS([prctl])
 AC_CHECK_FUNCS([pipe2])

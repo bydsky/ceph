@@ -11,6 +11,15 @@
  * Foundation.  See file COPYING.
  *
  */
+#include "acconfig.h"
+
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
 
 #include "include/types.h"
 #include "include/stringify.h"
@@ -218,10 +227,10 @@ int MemStore::statfs(struct statfs *st)
   return 0;
 }
 
-filestore_perf_stat_t MemStore::get_cur_stats()
+objectstore_perf_stat_t MemStore::get_cur_stats()
 {
   // fixme
-  return filestore_perf_stat_t();
+  return objectstore_perf_stat_t();
 }
 
 MemStore::CollectionRef MemStore::get_collection(coll_t cid)
@@ -648,7 +657,9 @@ int MemStore::queue_transactions(Sequencer *osr,
 
   for (list<Transaction*>::iterator p = tls.begin(); p != tls.end(); ++p) {
     // poke the TPHandle heartbeat just to exercise that code path
-    handle->reset_tp_timeout();
+    if (handle)
+      handle->reset_tp_timeout();
+
     _do_transaction(**p);
   }
 

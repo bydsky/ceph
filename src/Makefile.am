@@ -35,18 +35,18 @@ include tools/Makefile.am
 # core daemons
 
 ceph_mon_SOURCES = ceph_mon.cc
-ceph_mon_LDADD = $(LIBMON) $(LIBOS) $(CEPH_GLOBAL)
+ceph_mon_LDADD = $(LIBMON) $(LIBOS) $(CEPH_GLOBAL) $(LIBCOMMON)
 bin_PROGRAMS += ceph-mon
 
 ceph_osd_SOURCES = ceph_osd.cc
-ceph_osd_LDADD = $(LIBOSD) $(CEPH_GLOBAL)
+ceph_osd_LDADD = $(LIBOSD) $(CEPH_GLOBAL) $(LIBCOMMON)
 if LINUX
 ceph_osd_LDADD += -ldl
 endif # LINUX
 bin_PROGRAMS += ceph-osd
 
 ceph_mds_SOURCES = ceph_mds.cc
-ceph_mds_LDADD = $(LIBMDS) $(LIBOSDC) $(CEPH_GLOBAL)
+ceph_mds_LDADD = $(LIBMDS) $(LIBOSDC) $(CEPH_GLOBAL) $(LIBCOMMON)
 bin_PROGRAMS += ceph-mds
 
 
@@ -75,8 +75,8 @@ ceph_syn_SOURCES += client/SyntheticClient.cc # uses g_conf.. needs cleanup
 ceph_syn_LDADD = $(LIBCLIENT) $(CEPH_GLOBAL)
 bin_PROGRAMS += ceph-syn
 
-rbd_SOURCES = rbd.cc 
-rbd_LDADD = $(LIBRBD) $(LIBRADOS) $(CEPH_GLOBAL)
+rbd_SOURCES = rbd.cc
+rbd_LDADD = $(LIBRBD) $(LIBRADOS) $(CEPH_GLOBAL) -lblkid
 if LINUX
 bin_PROGRAMS += rbd
 endif #LINUX
@@ -173,6 +173,7 @@ EXTRA_DIST += \
 	$(srcdir)/upstart/radosgw.conf \
 	$(srcdir)/upstart/radosgw-all.conf \
 	$(srcdir)/upstart/radosgw-all-starter.conf \
+	$(srcdir)/upstart/rbdmap.conf \
 	ceph.in \
 	ceph-disk \
 	ceph-disk-prepare \
@@ -310,7 +311,8 @@ ceph: ceph.in ./ceph_ver.h Makefile
 # cleaning
 
 clean-local:
-	rm -f *.so *.gcno *.gcda
+	rm -f *.so 
+	find . -name '*.gcno' -o -name '*.gcda' -o -name '*.lcov' | xargs rm -f
 	rm -f ceph java/java/com/ceph/crush/Bucket.class
 
 

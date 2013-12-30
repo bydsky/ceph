@@ -28,18 +28,6 @@
 
 #include <stdio.h>
 
-#ifdef DARWIN
-
-#ifndef MAP_ANON
-#define MAP_ANON 0x1000
-#endif
-#ifndef O_DIRECTORY
-#define O_DIRECTORY 0x100000
-void	*valloc(size_t);
-#endif
-
-#endif
-
 #if defined(__linux__)	// For malloc(2).
 #include <malloc.h>
 #endif
@@ -157,7 +145,7 @@ public:
   static raw* claim_malloc(unsigned len, char *buf);
   static raw* create_static(unsigned len, char *buf);
   static raw* create_page_aligned(unsigned len);
-  static raw* create_zero_copy(unsigned len, int fd, loff_t *offset);
+  static raw* create_zero_copy(unsigned len, int fd, int64_t *offset);
 
   /*
    * a buffer pointer.  references (a subsequence of) a raw buffer.
@@ -216,7 +204,7 @@ public:
     }
 
     bool can_zero_copy() const;
-    int zero_copy_to_fd(int fd, loff_t *offset) const;
+    int zero_copy_to_fd(int fd, int64_t *offset) const;
 
     unsigned wasted();
 

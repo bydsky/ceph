@@ -227,11 +227,8 @@ int CrushCompiler::decompile(ostream &out)
     out << "\truleset " << crush.get_rule_mask_ruleset(i) << "\n";
 
     switch (crush.get_rule_mask_type(i)) {
-    case CEPH_PG_TYPE_REP:
+    case CEPH_PG_TYPE_REPLICATED:
       out << "\ttype replicated\n";
-      break;
-    case CEPH_PG_TYPE_RAID4:
-      out << "\ttype raid4\n";
       break;
     case CEPH_PG_TYPE_ERASURE:
       out << "\ttype erasure\n";
@@ -258,6 +255,14 @@ int CrushCompiler::decompile(ostream &out)
 	break;
       case CRUSH_RULE_SET_CHOOSE_TRIES:
 	out << "\tstep set_choose_tries " << crush.get_rule_arg1(i, j)
+	    << "\n";
+	break;
+      case CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES:
+	out << "\tstep set_choose_local_tries " << crush.get_rule_arg1(i, j)
+	    << "\n";
+	break;
+      case CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES:
+	out << "\tstep set_choose_local_fallback_tries " << crush.get_rule_arg1(i, j)
 	    << "\n";
 	break;
       case CRUSH_RULE_SET_CHOOSELEAF_TRIES:
@@ -578,9 +583,7 @@ int CrushCompiler::parse_rule(iter_t const& i)
   string tname = string_node(i->children[start+2]);
   int type;
   if (tname == "replicated")
-    type = CEPH_PG_TYPE_REP;
-  else if (tname == "raid4")
-    type = CEPH_PG_TYPE_RAID4;
+    type = CEPH_PG_TYPE_REPLICATED;
   else if (tname == "erasure")
     type = CEPH_PG_TYPE_ERASURE;
   else 
@@ -618,6 +621,20 @@ int CrushCompiler::parse_rule(iter_t const& i)
       {
 	int val = int_node(s->children[1]);
 	crush.set_rule_step_set_choose_tries(ruleno, step++, val);
+      }
+      break;
+
+    case crush_grammar::_step_set_choose_local_tries:
+      {
+	int val = int_node(s->children[1]);
+	crush.set_rule_step_set_choose_local_tries(ruleno, step++, val);
+      }
+      break;
+
+    case crush_grammar::_step_set_choose_local_fallback_tries:
+      {
+	int val = int_node(s->children[1]);
+	crush.set_rule_step_set_choose_local_fallback_tries(ruleno, step++, val);
       }
       break;
 

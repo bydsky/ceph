@@ -179,9 +179,13 @@ ceph_multi_stress_watch_SOURCES = \
 ceph_multi_stress_watch_LDADD = $(LIBRADOS) $(CEPH_GLOBAL)
 bin_DEBUGPROGRAMS += ceph_multi_stress_watch 
 
-
-
-
+ceph_erasure_code_benchmark_SOURCES = \
+	test/osd/ceph_erasure_code_benchmark.cc
+ceph_erasure_code_benchmark_LDADD = $(LIBOSD) $(LIBCOMMON) $(BOOST_PROGRAM_OPTIONS_LIBS) $(CEPH_GLOBAL)
+if LINUX
+ceph_erasure_code_benchmark_LDADD += -ldl
+endif
+bin_DEBUGPROGRAMS += ceph_erasure_code_benchmark
 
 
 ## System tests
@@ -234,7 +238,9 @@ bin_DEBUGPROGRAMS += ceph_bench_log
 
 check_SCRIPTS += \
 	unittest_bufferlist.sh \
-	test/encoding/check-generated.sh
+	test/encoding/check-generated.sh \
+	test/mon/osd-pool-create.sh \
+	test/vstart_wrapped_tests.sh
 
 # target to build but not run the unit tests
 unittests:: $(check_PROGRAMS)
@@ -262,6 +268,16 @@ unittest_bloom_filter_SOURCES = test/common/test_bloom_filter.cc
 unittest_bloom_filter_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 unittest_bloom_filter_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 check_PROGRAMS += unittest_bloom_filter
+
+unittest_str_map_SOURCES = test/common/test_str_map.cc
+unittest_str_map_CXXFLAGS = $(UNITTEST_CXXFLAGS)
+unittest_str_map_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL)
+check_PROGRAMS += unittest_str_map
+
+unittest_crushwrapper_SOURCES = test/test_crushwrapper.cc
+unittest_crushwrapper_CXXFLAGS = $(UNITTEST_CXXFLAGS)
+unittest_crushwrapper_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL) $(LIBCRUSH)
+check_PROGRAMS += unittest_crushwrapper
 
 unittest_sharedptr_registry_SOURCES = test/common/test_sharedptr_registry.cc
 unittest_sharedptr_registry_CXXFLAGS = $(UNITTEST_CXXFLAGS)
@@ -410,6 +426,11 @@ unittest_pglog_SOURCES = test/osd/TestPGLog.cc
 unittest_pglog_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 unittest_pglog_LDADD = $(LIBOSD) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 check_PROGRAMS += unittest_pglog
+
+unittest_hitset_SOURCES = test/osd/hitset.cc
+unittest_hitset_CXXFLAGS = $(UNITTEST_CXXFLAGS)
+unittest_hitset_LDADD = $(LIBOSD) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
+check_PROGRAMS += unittest_hitset
 
 if LINUX
 unittest_pglog_LDADD += -ldl
@@ -777,6 +798,14 @@ ceph_test_rados_api_misc_LDADD = $(LIBRADOS) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 ceph_test_rados_api_misc_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 bin_DEBUGPROGRAMS += ceph_test_rados_api_misc
 
+ceph_test_rados_api_tier_SOURCES = \
+	test/librados/tier.cc \
+	test/librados/test.cc \
+	osd/HitSet.cc
+ceph_test_rados_api_tier_LDADD = $(LIBRADOS) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
+ceph_test_rados_api_tier_CXXFLAGS = $(UNITTEST_CXXFLAGS)
+bin_DEBUGPROGRAMS += ceph_test_rados_api_tier
+
 ceph_test_rados_api_lock_SOURCES = \
 	test/librados/lock.cc \
 	test/librados/test.cc
@@ -881,6 +910,7 @@ noinst_HEADERS += \
 	test/osd/RadosModel.h \
 	test/osd/Object.h \
 	test/osd/TestOpStat.h \
+	test/osd/ceph_erasure_code_benchmark.h \
 	test/bench/distribution.h \
 	test/bench/rados_backend.h \
 	test/bench/rbd_backend.h \

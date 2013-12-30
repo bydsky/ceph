@@ -193,6 +193,71 @@ int CrushWrapper::remove_item_under(CephContext *cct, int item, int ancestor, bo
   return ret;
 }
 
+int CrushWrapper::get_common_ancestor_distance(CephContext *cct, int id,
+			       const std::multimap<string,string>& loc)
+{
+  ldout(cct, 5) << __func__ << " " << id << " " << loc << dendl;
+  if (!item_exists(id))
+    return -ENOENT;
+  map<string,string> id_loc = get_full_location(id);
+  ldout(cct, 20) << " id is at " << id_loc << dendl;
+
+  for (map<int,string>::const_iterator p = type_map.begin();
+       p != type_map.end();
+       ++p) {
+    map<string,string>::iterator ip = id_loc.find(p->second);
+    if (ip == id_loc.end())
+      continue;
+    for (std::multimap<string,string>::const_iterator q = loc.find(p->second);
+	 q != loc.end();
+	 ++q) {
+      if (q->first != p->second)
+	break;
+      if (q->second == ip->second)
+	return p->first;
+    }
+  }
+  return -ERANGE;
+}
+
+int CrushWrapper::parse_loc_map(const std::vector<string>& args,
+				std::map<string,string> *ploc)
+{
+  ploc->clear();
+  for (unsigned i = 0; i < args.size(); ++i) {
+    const char *s = args[i].c_str();
+    const char *pos = strchr(s, '=');
+    if (!pos)
+      return -EINVAL;
+    string key(s, 0, pos-s);
+    string value(pos+1);
+    if (value.length())
+      (*ploc)[key] = value;
+    else
+      return -EINVAL;
+  }
+  return 0;
+}
+
+int CrushWrapper::parse_loc_multimap(const std::vector<string>& args,
+					    std::multimap<string,string> *ploc)
+{
+  ploc->clear();
+  for (unsigned i = 0; i < args.size(); ++i) {
+    const char *s = args[i].c_str();
+    const char *pos = strchr(s, '=');
+    if (!pos)
+      return -EINVAL;
+    string key(s, 0, pos-s);
+    string value(pos+1);
+    if (value.length())
+      ploc->insert(make_pair(key, value));
+    else
+      return -EINVAL;
+  }
+  return 0;
+}
+
 bool CrushWrapper::check_item_loc(CephContext *cct, int item, const map<string,string>& loc,
 				  int *weight)
 {
@@ -258,32 +323,18 @@ map<string, string> CrushWrapper::get_full_location(int id)
 
 int CrushWrapper::get_full_location_ordered(int id, vector<pair<string, string> >& path)
 {
-  int parent_id, ret;
-  pair<string, string> parent_coord;
-  parent_coord = get_immediate_parent(id, &ret);
-
-  // read the type map and get the name of the type with the largest ID
-  int high_type = 0;
-  for (map<int, string>::iterator it = type_map.begin(); it != type_map.end(); ++it){
-    if ( (*it).first > high_type )
-      high_type = (*it).first;
-  }
-
-  string high_type_name = type_map[high_type];
-
-  path.push_back(parent_coord);
-  parent_id = get_item_id(parent_coord.second);
-
-
-  while (parent_coord.first != high_type_name) {
-    parent_coord = get_immediate_parent(parent_id);
+  if (!item_exists(id))
+    return -ENOENT;
+  int cur = id;
+  int ret;
+  while (true) {
+    pair<string, string> parent_coord = get_immediate_parent(cur, &ret);
+    if (ret != 0)
+      break;
     path.push_back(parent_coord);
-    if ( parent_coord.first != high_type_name ){
-      parent_id = get_item_id(parent_coord.second);
-    }
+    cur = get_item_id(parent_coord.second);
   }
-
-  return ret;
+  return 0;
 }
 
 
@@ -656,10 +707,11 @@ void CrushWrapper::reweight(CephContext *cct)
   }
 }
 
-int CrushWrapper::add_simple_rule(string name, string root_name,
-				  string failure_domain_name,
-				  string mode,
-				  ostream *err)
+int CrushWrapper::add_simple_ruleset(string name, string root_name,
+                                     string failure_domain_name,
+                                     string mode,
+                                     int rule_type,
+                                     ostream *err)
 {
   if (rule_exists(name)) {
     if (err)
@@ -698,7 +750,9 @@ int CrushWrapper::add_simple_rule(string name, string root_name,
   int steps = 3;
   if (mode == "indep")
     steps = 4;
-  crush_rule *rule = crush_make_rule(steps, ruleset, 1 /* pg_pool_t::TYPE_REP */, 1, 10);
+  int min_rep = mode == "firstn" ? 1 : 3;
+  int max_rep = mode == "firstn" ? 10 : 20;
+  crush_rule *rule = crush_make_rule(steps, ruleset, rule_type, min_rep, max_rep);
   assert(rule);
   int step = 0;
   if (mode == "indep")
@@ -1071,11 +1125,29 @@ void CrushWrapper::dump(Formatter *f) const
   f->close_section();
 
   f->open_object_section("tunables");
+  dump_tunables(f);
+  f->close_section();
+}
+
+void CrushWrapper::dump_tunables(Formatter *f) const
+{
   f->dump_int("choose_local_tries", get_choose_local_tries());
   f->dump_int("choose_local_fallback_tries", get_choose_local_fallback_tries());
   f->dump_int("choose_total_tries", get_choose_total_tries());
   f->dump_int("chooseleaf_descend_once", get_chooseleaf_descend_once());
-  f->close_section();
+
+  // be helpful about it
+  if (has_bobtail_tunables())
+    f->dump_string("profile", "bobtail");
+  else if (has_argonaut_tunables())
+    f->dump_string("profile", "argonaut");
+  else
+    f->dump_string("profile", "unknown");
+  f->dump_int("optimal_tunables", (int)has_optimal_tunables());
+  f->dump_int("legacy_tunables", (int)has_legacy_tunables());
+
+  f->dump_int("require_feature_tunables", (int)has_nondefault_tunables());
+  f->dump_int("require_feature_tunables2", (int)has_nondefault_tunables2());
 }
 
 void CrushWrapper::dump_rules(Formatter *f) const
@@ -1269,6 +1341,22 @@ void CrushWrapper::generate_test_instances(list<CrushWrapper*>& o)
   // fixme
 }
 
+int CrushWrapper::get_osd_pool_default_crush_replicated_ruleset(CephContext *cct)
+{
+  int crush_ruleset = cct->_conf->osd_pool_default_crush_replicated_ruleset;
+  if (cct->_conf->osd_pool_default_crush_rule != -1) {
+    ldout(cct, 0) << "osd_pool_default_crush_rule is deprecated "
+                  << "use osd_pool_default_crush_replicated_ruleset instead"
+                  << dendl;
+    ldout(cct, 0) << "osd_pool_default_crush_rule = "
+                  << cct->_conf-> osd_pool_default_crush_rule << " overrides "
+                  << "osd_pool_default_crush_replicated_ruleset = "
+                  << cct->_conf->osd_pool_default_crush_replicated_ruleset
+                  << dendl;
+    crush_ruleset = cct->_conf->osd_pool_default_crush_rule;
+  }
+  return crush_ruleset;
+}
 
 bool CrushWrapper::is_valid_crush_name(const string& s)
 {

@@ -48,7 +48,7 @@ Notable Changes:
 * mon: prevent extreme changes in pool pg_num (Greg Farnum)
 * mon: take 'osd pool set ...' value as an int, not string (Joao Eduardo Luis)
 * mon: trim MDSMaps (Joao Eduardo Luis)
-* osd: fix object_info_t encoding bug from emperor (****
+* osd: fix object_info_t encoding bug from emperor (Sam Just)
 * rbd: add 'rbdmap' init script for mapping rbd images on book (Adam Twardowski)
 * rgw: add 'status' command to sysvinit script (David Moreau Simard)
 * rgw: fix error setting empty owner on ACLs (Yehuda Sadeh)
@@ -56,6 +56,35 @@ Notable Changes:
 * rgw: support for password (instead of admin token) for keystone authentication (Christophe Courtaut)
 * sysvinit, upstart: prevent both init systems from starting the same daemons (Josh Durgin)
 
+
+v0.72.2 Emperor
+---------------
+
+This is the second bugfix release for the v0.72.x Emperor series.  We
+have fixed a hang in radosgw, and fixed (again) a problem with monitor
+CLI compatiblity with mixed version monitors.  (In the future this
+will no longer be a problem.)
+
+Upgrading
+~~~~~~~~~
+
+* The JSON schema for the 'osd pool set ...' command changed slightly.  Please
+  avoid issuing this particular command via the CLI while there is a mix of
+  v0.72.1 and v0.72.2 monitor daemons running.
+
+Changes
+~~~~~~~
+
+* mon: 'osd pool set ...' syntax change
+* osd: added test for missing on-disk HEAD object
+* osd: fix osd bench block size argument
+* rgw: fix hang on large object GET
+* rgw: fix rare use-after-free
+* rgw: various DR bug fixes
+* rgw: do not return error on empty owner when setting ACL
+* sysvinit, upstart: prevent starting daemons using both init systems
+
+For more detailed information, see :download:`the complete changelog <changelog/v0.72.2.txt>`.
 
 v0.72.1 Emperor
 ---------------
@@ -651,6 +680,41 @@ Notable Changes
 * rgw: fix S3 auth with response-* query string params (Sylvain Munaut, Yehuda Sadeh)
 * sysvinit: add condrestart command (Dan van der Ster)
 
+
+v0.67.5 "Dumpling"
+------------------
+
+This release includes a few critical bug fixes for the radosgw, 
+including a fix for hanging operations on large objects.  There are also
+several bug fixes for radosgw multi-site replications, and a few 
+backported features.  Also, notably, the 'osd perf' command (which dumps
+recent performance information about active OSDs) has been backported.
+
+We recommend that all 0.67.x Dumpling users upgrade.
+
+Notable changes
+~~~~~~~~~~~~~~~
+
+* ceph-fuse: fix crash in caching code
+* mds: fix looping in populate_mydir()
+* mds: fix standby-replay race
+* mon: accept 'osd pool set ...' as string
+* mon: backport: 'osd perf' command to dump recent OSD performance stats
+* osd: add feature compat check for upcoming object sharding
+* osd: fix osd bench block size argument
+* rbd.py: increase parent name size limit
+* rgw: backport: allow wildcard in supported keystone roles
+* rgw: backport: improve swift COPY behavior
+* rgw: backport: log and open admin socket by default
+* rgw: backport: validate S3 tokens against keystone
+* rgw: fix bucket removal
+* rgw: fix client error code for chunked PUT failure
+* rgw: fix hang on large object GET
+* rgw: fix rare use-after-free
+* rgw: various DR bug fixes
+* sysvinit, upstart: prevent starting daemons using both init systems
+
+For more detailed information, see :download:`the complete changelog <changelog/v0.67.5.txt>`.
 
 
 v0.67.4 "Dumpling"

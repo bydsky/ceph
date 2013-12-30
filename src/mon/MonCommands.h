@@ -429,6 +429,8 @@ COMMAND("osd crush reweight " \
 COMMAND("osd crush tunables " \
 	"name=profile,type=CephChoices,strings=legacy|argonaut|bobtail|optimal|default", \
 	"set crush tunables values to <profile>", "osd", "rw", "cli,rest")
+COMMAND("osd crush show-tunables", \
+	"show current crush tunables", "osd", "r", "cli,rest")
 COMMAND("osd crush rule create-simple " \
 	"name=name,type=CephString,goodchars=[A-Za-z0-9-_.] " \
 	"name=root,type=CephString,goodchars=[A-Za-z0-9-_.] " \
@@ -494,6 +496,7 @@ COMMAND("osd pool create " \
 	"name=pool,type=CephPoolname " \
 	"name=pg_num,type=CephInt,range=0 " \
 	"name=pgp_num,type=CephInt,range=0,req=false " \
+        "name=pool_type,type=CephChoices,strings=replicated|erasure,req=false " \
 	"name=properties,type=CephString,n=N,req=false,goodchars=[A-Za-z0-9-_.=]", \
 	"create pool", "osd", "rw", "cli,rest")
 COMMAND("osd pool delete " \
@@ -512,7 +515,7 @@ COMMAND("osd pool get " \
 	"get pool parameter <var>", "osd", "r", "cli,rest")
 COMMAND("osd pool set " \
 	"name=pool,type=CephPoolname " \
-	"name=var,type=CephChoices,strings=size|min_size|crash_replay_interval|pg_num|pgp_num|crush_ruleset|hashpspool " \
+	"name=var,type=CephChoices,strings=size|min_size|crash_replay_interval|pg_num|pgp_num|crush_ruleset|hashpspool|hit_set_type|hit_set_period|hit_set_count|hit_set_fpp " \
 	"name=val,type=CephString", \
 	"set pool parameter <var> to <val>", "osd", "rw", "cli,rest")
 // 'val' is a CephString because it can include a unit.  Perhaps

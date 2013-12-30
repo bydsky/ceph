@@ -1018,6 +1018,18 @@ bool PG::choose_acting(int& newest_update_osd)
     return false;
   }
 
+  // TODO: Add check of osdmap for all OSDs to be able to handle new acting
+  // Determine if compatibility needed
+  bool compat_mode = !cct->_conf->osd_debug_override_acting_compat;
+
+  if (compat_mode) {
+    // May not be necessary, but the old mechanism only did one at a time
+    if (!backfill.empty())
+      backfill.resize(1);
+
+    want.insert(want.end(), backfill.begin(), backfill.end());
+  }
+
   if (want != acting) {
     dout(10) << "choose_acting want " << want << " != acting " << acting
 	     << ", requesting pg_temp change" << dendl;
@@ -1026,7 +1038,7 @@ bool PG::choose_acting(int& newest_update_osd)
     if (want == up) {
       // There can't be any pending backfill if
       // want is the same as crush map up OSDs.
-      assert(backfill.empty());
+      assert(compat_mode || backfill.empty());
       vector<int> empty;
       osd->queue_want_pg_temp(info.pgid, empty);
     } else
@@ -1038,7 +1050,8 @@ bool PG::choose_acting(int& newest_update_osd)
   // we've accepted the acting set.  Now we can create
   // actingbackfill and backfill_targets vectors.
   actingbackfill = acting;
-  actingbackfill.insert(actingbackfill.end(), backfill.begin(), backfill.end());
+  if (!compat_mode)
+    actingbackfill.insert(actingbackfill.end(), backfill.begin(), backfill.end());
   assert(backfill_targets.empty() || backfill_targets == backfill);
   if (backfill_targets.empty()) {
     backfill_targets = backfill;
@@ -5001,6 +5014,8 @@ void PG::handle_advance_map(OSDMapRef osdmap, OSDMapRef lastmap,
   dout(10) << "handle_advance_map " << newup << "/" << newacting << dendl;
   update_osdmap_ref(osdmap);
   pool.update(osdmap);
+  if (pool.info.last_change == osdmap_ref->get_epoch())
+    on_pool_change();
   AdvMap evt(osdmap, lastmap, newup, newacting);
   recovery_state.handle_event(evt, rctx);
 }

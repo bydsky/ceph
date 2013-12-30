@@ -86,13 +86,14 @@ WRITE_CLASS_ENCODER(osd_info_t)
 
 ostream& operator<<(ostream& out, const osd_info_t& info);
 
-
 struct osd_xinfo_t {
   utime_t down_stamp;      ///< timestamp when we were last marked down
   float laggy_probability; ///< encoded as __u32: 0 = definitely not laggy, 0xffffffff definitely laggy
   __u32 laggy_interval;    ///< average interval between being marked laggy and recovering
+  uint64_t features;       ///< features supported by this osd we should know about
 
-  osd_xinfo_t() : laggy_probability(0), laggy_interval(0) {}
+  osd_xinfo_t() : laggy_probability(0), laggy_interval(0),
+                  features(0) {}
 
   void dump(Formatter *f) const;
   void encode(bufferlist& bl) const;
@@ -171,6 +172,9 @@ public:
 	new_pools[pool] = *orig;
       return &new_pools[pool];
     }
+
+    /// propage update pools' snap metadata to any of their tiers
+    int propagate_snaps_to_tiers(const OSDMap &base);
   };
   
 private:
@@ -265,6 +269,7 @@ private:
   int calc_num_osds();
 
   void get_all_osds(set<int32_t>& ls) const;
+  void get_up_osds(set<int32_t>& ls) const;
   unsigned get_num_up_osds() const;
   unsigned get_num_in_osds() const;
 
@@ -596,16 +601,26 @@ public:
   /*
    * handy helpers to build simple maps...
    */
-  /// build crush bucket types.  @return 'root' type id
-  void build_simple(CephContext *cct, epoch_t e, uuid_d &fsid,
-		    int num_osd, int pg_bits, int pgp_bits);
-  int build_simple_from_conf(CephContext *cct, epoch_t e, uuid_d &fsid,
-			     int pg_bits, int pgp_bits);
+  /**
+   * Build an OSD map suitable for basic usage. If **num_osd** is >= 0
+   * it will be initialized with the specified number of OSDs in a
+   * single host. If **num_osd** is < 0 the layout of the OSD map will 
+   * be built by reading the content of the configuration file.
+   *
+   * @param cct [in] in core ceph context 
+   * @param e [in] initial epoch
+   * @param fsid [in] id of the cluster
+   * @param num_osd [in] number of OSDs if >= 0 or read from conf if < 0
+   * @return **0** on success, negative errno on error.
+   */
+  int build_simple(CephContext *cct, epoch_t e, uuid_d &fsid,
+		   int num_osd, int pg_bits, int pgp_bits);
   static int _build_crush_types(CrushWrapper& crush);
-  static void build_simple_crush_map(CephContext *cct, CrushWrapper& crush,
-				     map<int, const char*>& poolsets, int num_osd);
-  static void build_simple_crush_map_from_conf(CephContext *cct, CrushWrapper& crush,
-					       map<int, const char*>& rulesets);
+  static int build_simple_crush_map(CephContext *cct, CrushWrapper& crush,
+				    int num_osd, stringstream *ss);
+  static int build_simple_crush_map_from_conf(CephContext *cct,
+					      CrushWrapper& crush,
+					      stringstream *ss);
 
   bool crush_ruleset_in_use(int ruleset) const;
 

@@ -169,6 +169,7 @@ OPTION(mon_globalid_prealloc, OPT_INT, 100)   // how many globalids to prealloc
 OPTION(mon_osd_report_timeout, OPT_INT, 900)    // grace period before declaring unresponsive OSDs dead
 OPTION(mon_force_standby_active, OPT_BOOL, true) // should mons force standby-replay mds to be active
 OPTION(mon_warn_on_old_mons, OPT_BOOL, true) // should mons set health to WARN if part of quorum is old?
+OPTION(mon_warn_on_legacy_crush_tunables, OPT_BOOL, true) // warn if crush tunables are not optimal
 OPTION(mon_min_osdmap_epochs, OPT_INT, 500)
 OPTION(mon_max_pgmap_epochs, OPT_INT, 500)
 OPTION(mon_max_log_epochs, OPT_INT, 500)
@@ -268,6 +269,9 @@ OPTION(fuse_default_permissions, OPT_BOOL, true)
 OPTION(fuse_big_writes, OPT_BOOL, true)
 OPTION(fuse_atomic_o_trunc, OPT_BOOL, true)
 OPTION(fuse_debug, OPT_BOOL, false)
+
+OPTION(crush_location, OPT_STR, "")       // whitespace-separated list of key=value pairs describing crush location
+
 OPTION(objecter_tick_interval, OPT_DOUBLE, 5.0)
 OPTION(objecter_timeout, OPT_DOUBLE, 10.0)    // before we ask for a map
 OPTION(objecter_inflight_op_bytes, OPT_U64, 1024*1024*100) // max in-flight data (both directions)
@@ -291,6 +295,7 @@ OPTION(mds_beacon_grace, OPT_FLOAT, 15)
 OPTION(mds_enforce_unique_name, OPT_BOOL, true)
 OPTION(mds_blacklist_interval, OPT_FLOAT, 24.0*60.0)  // how long to blacklist failed nodes
 OPTION(mds_session_timeout, OPT_FLOAT, 60)    // cap bits and leases time out if client idle
+OPTION(mds_freeze_tree_timeout, OPT_FLOAT, 30)    // cap bits and leases time out if client idle
 OPTION(mds_session_autoclose, OPT_FLOAT, 300) // autoclose idle session
 OPTION(mds_reconnect_timeout, OPT_FLOAT, 45)  // seconds to wait for clients during mds restart
 	      //  make it (mds_session_timeout - mds_beacon_grace)
@@ -388,15 +393,26 @@ OPTION(osd_client_message_cap, OPT_U64, 100)              // num client messages
 OPTION(osd_pg_bits, OPT_INT, 6)  // bits per osd
 OPTION(osd_pgp_bits, OPT_INT, 6)  // bits per osd
 OPTION(osd_crush_chooseleaf_type, OPT_INT, 1) // 1 = host
-OPTION(osd_min_rep, OPT_INT, 1)
-OPTION(osd_max_rep, OPT_INT, 10)
-OPTION(osd_pool_default_crush_rule, OPT_INT, 0)
+OPTION(osd_pool_default_crush_rule, OPT_INT, -1) // deprecated for osd_pool_default_crush_replicated_ruleset
+OPTION(osd_pool_default_crush_replicated_ruleset, OPT_INT, CEPH_DEFAULT_CRUSH_REPLICATED_RULESET)
+OPTION(osd_pool_default_crush_erasure_ruleset, OPT_INT, CEPH_DEFAULT_CRUSH_ERASURE_RULESET)
 OPTION(osd_pool_default_size, OPT_INT, 3)
 OPTION(osd_pool_default_min_size, OPT_INT, 0)  // 0 means no specific default; ceph will use size-size/2
 OPTION(osd_pool_default_pg_num, OPT_INT, 8) // number of PGs for new pools. Configure in global or mon section of ceph.conf
 OPTION(osd_pool_default_pgp_num, OPT_INT, 8) // number of PGs for placement purposes. Should be equal to pg_num
+OPTION(osd_pool_default_erasure_code_directory, OPT_STR, CEPH_PKGLIBDIR"/erasure-code") // default for the erasure-code-directory=XXX property of osd pool create
+OPTION(osd_pool_default_erasure_code_properties,
+       OPT_STR,
+       "erasure-code-plugin=jerasure "
+       "erasure-code-technique=cauchy_good "
+       "erasure-code-packetsize=3072 "
+       "erasure-code-k=4 "
+       "erasure-code-m=2 "
+       ) // default properties of osd pool create
 OPTION(osd_pool_default_flags, OPT_INT, 0)   // default flags for new pools
 OPTION(osd_pool_default_flag_hashpspool, OPT_BOOL, true)   // use new pg hashing to prevent pool/pg overlap
+OPTION(osd_hit_set_min_size, OPT_INT, 1000)  // min target size for a HitSet
+OPTION(osd_hit_set_namespace, OPT_STR, ".ceph-internal") // rados namespace for hit_set tracking
 OPTION(osd_map_dedup, OPT_BOOL, true)
 OPTION(osd_map_cache_size, OPT_INT, 500)
 OPTION(osd_map_message_max, OPT_INT, 100)  // max maps per MOSDMap message
@@ -525,6 +541,9 @@ OPTION(osd_max_object_size, OPT_U64, 100*1024L*1024L*1024L) // OSD's maximum obj
 OPTION(osd_max_attr_size, OPT_U64, 0)
 
 OPTION(osd_objectstore, OPT_STR, "filestore")  // ObjectStore backend type
+// Override maintaining compatibility with older OSDs
+// Set to true for testing.  Users should NOT set this.
+OPTION(osd_debug_override_acting_compat, OPT_BOOL, false)
 
 /// filestore wb throttle limits
 OPTION(filestore_wbthrottle_enable, OPT_BOOL, true)
@@ -624,6 +643,8 @@ OPTION(rbd_cache_block_writes_upfront, OPT_BOOL, false) // whether to block writ
 OPTION(rbd_concurrent_management_ops, OPT_INT, 10) // how many operations can be in flight for a management operation like deleting or resizing an image
 OPTION(rbd_balance_snap_reads, OPT_BOOL, false)
 OPTION(rbd_localize_snap_reads, OPT_BOOL, false)
+OPTION(rbd_balance_parent_reads, OPT_BOOL, false)
+OPTION(rbd_localize_parent_reads, OPT_BOOL, true)
 
 /*
  * The following options change the behavior for librbd's image creation methods that
@@ -734,6 +755,8 @@ OPTION(rgw_replica_log_obj_prefix, OPT_STR, "replica_log") //
 OPTION(rgw_bucket_quota_ttl, OPT_INT, 600) // time for cached bucket stats to be cached within rgw instance
 OPTION(rgw_bucket_quota_soft_threshold, OPT_DOUBLE, 0.95) // threshold from which we don't rely on cached info for quota decisions
 OPTION(rgw_bucket_quota_cache_size, OPT_INT, 10000) // number of entries in bucket quota cache
+
+OPTION(rgw_frontends, OPT_STR, "") // alternative front ends
 
 OPTION(mutex_perf_counter, OPT_BOOL, false) // enable/disable mutex perf counter
 

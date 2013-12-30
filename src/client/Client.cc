@@ -1600,6 +1600,11 @@ void Client::handle_client_session(MClientSession *m)
     trim_caps(session, m->get_max_caps());
     break;
 
+  case CEPH_SESSION_FLUSHMSG:
+    messenger->send_message(new MClientSession(CEPH_SESSION_FLUSHMSG_ACK, m->get_seq()),
+			    session->con);
+    break;
+
   default:
     assert(0);
   }
@@ -8026,6 +8031,8 @@ int Client::get_file_extent_osds(int fd, loff_t off, loff_t *len, vector<int>& o
 int Client::get_osd_crush_location(int id, vector<pair<string, string> >& path)
 {
   Mutex::Locker lock(client_lock);
+  if (id < 0)
+    return -EINVAL;
   return osdmap->crush->get_full_location_ordered(id, path);
 }
 
